@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import { connectRedis } from './config/redis.js';
 import pool from './config/database.js';
 import authRoutes from './routes/auth.js';
+import marketRoutes from './routes/market.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import winston from 'winston';
 
@@ -77,6 +78,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/market', marketRoutes);
 
 // API Documentation route
 app.get('/api', (req, res) => {

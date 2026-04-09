@@ -51,6 +51,48 @@ CREATE TABLE transactions (
 CREATE INDEX idx_transactions_wallet_id ON transactions(wallet_id);
 CREATE INDEX idx_transactions_type ON transactions(type);
 
+-- 7. Stocks Table (股票表 - 全球个股数据)
+CREATE TABLE stocks (
+    id SERIAL PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL,
+    name_en VARCHAR(100) NOT NULL,
+    name_cn VARCHAR(100),
+    exchange VARCHAR(20) NOT NULL, -- NYSE, NASDAQ, SSE, HKEX, etc.
+    sector VARCHAR(50), -- Technology, Finance, Healthcare, etc.
+    price DECIMAL(12, 2) DEFAULT 0,
+    change_percent DECIMAL(8, 2) DEFAULT 0,
+    volume BIGINT DEFAULT 0,
+    market_cap BIGINT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_stocks_symbol ON stocks(symbol);
+CREATE INDEX idx_stocks_exchange ON stocks(exchange);
+CREATE INDEX idx_stocks_sector ON stocks(sector);
+CREATE UNIQUE INDEX idx_stocks_symbol_exchange ON stocks(symbol, exchange);
+
+-- 插入纳斯达克种子数据
+INSERT INTO stocks (symbol, name_en, name_cn, exchange, sector, price, change_percent, volume, market_cap) VALUES
+('AAPL', 'Apple Inc.', '苹果公司', 'NASDAQ', 'Technology', 178.35, 1.25, 58000000, 2800000000000),
+('TSLA', 'Tesla Inc.', '特斯拉', 'NASDAQ', 'Automotive', 245.60, -2.30, 120000000, 780000000000),
+('NVDA', 'NVIDIA Corp.', '英伟达', 'NASDAQ', 'Technology', 460.15, 3.45, 45000000, 1100000000000),
+('MSFT', 'Microsoft Corp.', '微软', 'NASDAQ', 'Technology', 330.50, 0.85, 22000000, 2500000000000),
+('AMZN', 'Amazon.com Inc.', '亚马逊', 'NASDAQ', 'Consumer', 135.20, 1.10, 35000000, 1400000000000),
+('GOOGL', 'Alphabet Inc.', '谷歌', 'NASDAQ', 'Technology', 138.40, 0.50, 18000000, 1700000000000),
+('META', 'Meta Platforms', '元平台', 'NASDAQ', 'Technology', 305.25, 2.15, 25000000, 790000000000),
+('NFLX', 'Netflix Inc.', '奈飞', 'NASDAQ', 'Media', 445.80, -1.05, 8000000, 190000000000),
+('AMD', 'Adv. Micro Devices', '超微半导体', 'NASDAQ', 'Technology', 105.30, 4.20, 65000000, 170000000000),
+('INTC', 'Intel Corp.', '英特尔', 'NASDAQ', 'Technology', 36.50, -0.80, 40000000, 150000000000);
+
+-- 插入上交所种子数据
+INSERT INTO stocks (symbol, name_en, name_cn, exchange, sector, price, change_percent, volume, market_cap) VALUES
+('600519', 'Kweichow Moutai', '贵州茅台', 'SSE', 'Consumer', 1780.00, 0.50, 2000000, 2200000000000),
+('601398', 'ICBC', '工商银行', 'SSE', 'Finance', 4.50, 0.20, 80000000, 1600000000000),
+('600036', 'China Merchants Bank', '招商银行', 'SSE', 'Finance', 32.80, 1.10, 15000000, 850000000000),
+('601888', 'China Tourism Group', '中国中免', 'SSE', 'Consumer', 85.60, -1.50, 5000000, 170000000000),
+('600900', 'Yangtze Power', '长江电力', 'SSE', 'Energy', 25.40, 0.30, 12000000, 580000000000);
+
 -- 4. Orders Table (订单表 - 交易核心)
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
