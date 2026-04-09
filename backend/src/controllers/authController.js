@@ -2,7 +2,7 @@ import pool from '../config/database.js';
 import UserModel from '../models/UserModel.js';
 import WalletModel from '../models/WalletModel.js';
 import { hashPassword, generateVerificationCode, comparePassword, generateToken } from '../utils/crypto.js';
-import { sendVerificationEmail } from './emailService.js';
+import { sendVerificationEmail } from '../services/emailService.js';
 
 /**
  * Auth Controller
