@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
-import { registerUser, verifyEmail, resendVerificationCode } from '../services/authService.js';
-import { generateToken, comparePassword } from '../utils/crypto.js';
-import pool from '../config/database.js';
+import authController from '../controllers/authController.js';
 import { authLimiter, emailLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
@@ -27,19 +25,10 @@ router.post(
     }
 
     try {
-      const { email, password, nickname, locale } = req.body;
-      const result = await registerUser({ email, password, nickname, locale });
-      
-      res.status(201).json({
-        success: true,
-        data: result,
-      });
+      await authController.register(req, res);
     } catch (error) {
-      console.error('Register error:', error);
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Registration failed',
-      });
+      console.error('Register route error:', error);
+      // Error is handled in controller
     }
   }
 );
@@ -61,18 +50,10 @@ router.post(
     }
 
     try {
-      const { email, code } = req.body;
-      const result = await verifyEmail(email, code);
-      
-      res.json({
-        success: true,
-        data: result,
-      });
+      await authController.verifyEmail(req, res);
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Verification failed',
-      });
+      console.error('Verify route error:', error);
+      // Error is handled in controller
     }
   }
 );
@@ -95,18 +76,10 @@ router.post(
     }
 
     try {
-      const { email, locale } = req.body;
-      const result = await resendVerificationCode(email, locale);
-      
-      res.json({
-        success: true,
-        data: result,
-      });
+      await authController.resendCode(req, res);
     } catch (error) {
-      res.status(400).json({
-        success: false,
-        error: error.message || 'Failed to resend code',
-      });
+      console.error('Resend code route error:', error);
+      // Error is handled in controller
     }
   }
 );
@@ -129,66 +102,10 @@ router.post(
     }
 
     try {
-      const { email, password } = req.body;
-      
-      const userResult = await pool.query(
-        'SELECT id, email, password_hash, nickname, locale, is_verified, status FROM users WHERE email = $1',
-        [email]
-      );
-      
-      if (userResult.rows.length === 0) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid credentials',
-        });
-      }
-      
-      const user = userResult.rows[0];
-      
-      if (user.status !== 'active') {
-        return res.status(403).json({
-          success: false,
-          error: 'Account is disabled',
-        });
-      }
-      
-      const isValidPassword = await comparePassword(password, user.password_hash);
-      
-      if (!isValidPassword) {
-        return res.status(401).json({
-          success: false,
-          error: 'Invalid credentials',
-        });
-      }
-      
-      const token = generateToken(user.id, user.email);
-      
-      // Update last login IP
-      const clientIP = req.ip || req.connection.remoteAddress;
-      await pool.query(
-        'UPDATE users SET last_login_ip = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        [clientIP, user.id]
-      );
-      
-      res.json({
-        success: true,
-        data: {
-          token,
-          user: {
-            id: user.id,
-            email: user.email,
-            nickname: user.nickname,
-            locale: user.locale,
-            isVerified: user.is_verified,
-          },
-        },
-      });
+      await authController.login(req, res);
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Login failed',
-      });
+      console.error('Login route error:', error);
+      // Error is handled in controller
     }
   }
 );
