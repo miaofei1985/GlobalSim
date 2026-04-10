@@ -2,30 +2,30 @@
   <div class="login-container">
     <div class="login-box">
       <h1>{{ $t('auth.login_title') }}</h1>
-      
+
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label for="email">{{ $t('auth.email') }}</label>
-          <input 
-            type="email" 
-            id="email" 
-            v-model="form.email" 
+          <input
+            type="email"
+            id="email"
+            v-model="form.email"
             :placeholder="$t('auth.email_placeholder')"
             required
           />
         </div>
-        
+
         <div class="form-group">
           <label for="password">{{ $t('auth.password') }}</label>
-          <input 
-            type="password" 
-            id="password" 
-            v-model="form.password" 
+          <input
+            type="password"
+            id="password"
+            v-model="form.password"
             :placeholder="$t('auth.password_placeholder')"
             required
           />
         </div>
-        
+
         <div class="form-options">
           <label class="checkbox-label">
             <input type="checkbox" v-model="form.remember" />
@@ -35,16 +35,16 @@
             {{ $t('auth.forgot_password') }}
           </router-link>
         </div>
-        
+
         <button type="submit" class="btn-primary" :disabled="loading">
           {{ loading ? $t('common.loading') : $t('auth.login_button') }}
         </button>
-        
+
         <div class="error-message" v-if="error">
           {{ error }}
         </div>
       </form>
-      
+
       <div class="login-footer">
         <p>
           {{ $t('auth.no_account') }}
@@ -62,7 +62,6 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { authApi } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
@@ -81,18 +80,22 @@ const error = ref('')
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
-    const response = await authApi.login(form.email, form.password)
-    userStore.setToken(response.token)
-    userStore.setUser(response.user)
-    
-    if (form.remember) {
-      localStorage.setItem('globalsim_token', response.token)
-    } else {
-      sessionStorage.setItem('globalsim_token', response.token)
+    const result = await userStore.login(
+      {
+        email: form.email,
+        password: form.password
+      },
+      {
+        remember: form.remember
+      }
+    )
+
+    if (!result.success) {
+      throw new Error(result.error)
     }
-    
+
     router.push('/')
   } catch (err) {
     error.value = err.message || t('errors.login_failed')
@@ -141,13 +144,13 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  
+
   label {
     color: #a0a0a0;
     font-size: 14px;
     font-weight: 500;
   }
-  
+
   input {
     padding: 12px 16px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -156,13 +159,13 @@ h1 {
     color: #fff;
     font-size: 16px;
     transition: all 0.3s ease;
-    
+
     &:focus {
       outline: none;
       border-color: #4f46e5;
       background: rgba(255, 255, 255, 0.08);
     }
-    
+
     &::placeholder {
       color: #666;
     }
@@ -174,26 +177,26 @@ h1 {
   justify-content: space-between;
   align-items: center;
   font-size: 14px;
-  
+
   .checkbox-label {
     display: flex;
     align-items: center;
     gap: 8px;
     color: #a0a0a0;
     cursor: pointer;
-    
-    input[type="checkbox"] {
+
+    input[type='checkbox'] {
       width: 16px;
       height: 16px;
       cursor: pointer;
     }
   }
-  
+
   .forgot-link {
     color: #4f46e5;
     text-decoration: none;
     transition: color 0.3s ease;
-    
+
     &:hover {
       color: #6366f1;
     }
@@ -210,12 +213,12 @@ h1 {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  
+
   &:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -236,17 +239,17 @@ h1 {
   text-align: center;
   color: #a0a0a0;
   font-size: 14px;
-  
+
   a {
     color: #4f46e5;
     text-decoration: none;
     font-weight: 600;
-    
+
     &:hover {
       text-decoration: underline;
     }
   }
-  
+
   .demo-hint {
     margin-top: 15px;
     font-size: 12px;
@@ -254,8 +257,7 @@ h1 {
   }
 }
 
-// RTL Support
-[dir="rtl"] {
+[dir='rtl'] {
   .form-options {
     flex-direction: row-reverse;
   }

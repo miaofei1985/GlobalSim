@@ -5,14 +5,23 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const { t, locale } = useI18n()
+const { locale } = useI18n()
 
 const isRTL = computed(() => {
   const rtlLocales = ['ar', 'fa', 'he', 'ur']
   return rtlLocales.includes(locale.value.split('-')[0])
+})
+
+watchEffect(() => {
+  if (typeof document === 'undefined') {
+    return
+  }
+
+  document.documentElement.lang = locale.value
+  document.documentElement.dir = isRTL.value ? 'rtl' : 'ltr'
 })
 </script>
 

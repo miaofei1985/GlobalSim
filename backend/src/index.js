@@ -9,12 +9,13 @@ import { connectRedis } from './config/redis.js';
 import pool from './config/database.js';
 import authRoutes from './routes/auth.js';
 import marketRoutes from './routes/market.js';
+import walletRoutes from './routes/wallet.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
+import marketIndexSyncService from './services/marketIndexSyncService.js';
 import winston from 'winston';
 
 dotenv.config();
 
-// Logger setup
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: winston.format.combine(
@@ -31,31 +32,28 @@ const logger = winston.createLogger({
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true,
+  })
+);
 
-// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Compression
 app.use(compression());
 
-// Logging
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('combined', {
-    stream: { write: (message) => logger.info(message.trim()) },
-  }));
+  app.use(
+    morgan('combined', {
+      stream: { write: (message) => logger.info(message.trim()) },
+    })
+  );
 }
 
-// Rate limiting
 app.use('/api', apiLimiter);
 
-// Health check
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -76,11 +74,10 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/wallet', walletRoutes);
 
-// API Documentation route
 app.get('/api', (req, res) => {
   res.json({
     name: 'GlobalSim API',
@@ -89,16 +86,22 @@ app.get('/api', (req, res) => {
     endpoints: {
       health: 'GET /health',
       auth: {
+        captcha: 'GET /api/auth/captcha',
+        sendCode: 'POST /api/auth/send-code',
         register: 'POST /api/auth/register',
         verify: 'POST /api/auth/verify',
         resendCode: 'POST /api/auth/resend-code',
         login: 'POST /api/auth/login',
       },
+      wallet: {
+        balance: 'GET /api/wallet/balance',
+        transactions: 'GET /api/wallet/transactions',
+        transfer: 'POST /api/wallet/transfer',
+      },
     },
   });
 });
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -106,7 +109,6 @@ app.use((req, res) => {
   });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
   logger.error('Error:', {
     message: err.message,
@@ -121,22 +123,27 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Server startup
 const startServer = async () => {
   try {
-    // Test database connection
     await pool.query('SELECT 1');
-    logger.info('✅ Database connected');
+    logger.info('Database connected');
 
-    // Connect Redis
     await connectRedis();
-    logger.info('✅ Redis connected');
+    logger.info('Redis connected');
 
-    // Start server
+    try {
+      await marketIndexSyncService.initialize(logger);
+    } catch (error) {
+      logger.warn('Market index sync initialization skipped', {
+        error: error.message,
+      });
+    }
+
     app.listen(PORT, () => {
-      logger.info(`🚀 GlobalSim Backend running on port ${PORT}`);
-      logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`🌐 Health check: http://localhost:${PORT}/health`);
+      logger.info(`GlobalSim Backend running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Health check: http://localhost:${PORT}/health`);
+      marketIndexSyncService.start(logger);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
@@ -144,14 +151,15 @@ const startServer = async () => {
   }
 };
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received. Shutting down gracefully...');
+  marketIndexSyncService.stop();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received. Shutting down gracefully...');
+  marketIndexSyncService.stop();
   process.exit(0);
 });
 
